@@ -1,0 +1,53 @@
+---
+- name: Install Kafka and Zookeeper on EC2
+  hosts: kafka
+  become: yes
+
+  tasks:
+    - name: Install dependencies
+      apt:
+        name:
+          - openjdk-11-jdk
+          - wget
+          - net-tools
+        state: present
+      when: ansible_os_family == 'Debian'
+
+    - name: Download Kafka
+      get_url:
+        url: https://downloads.apache.org/kafka/3.6.1/kafka_2.13-3.6.1.tgz
+        dest: /opt/kafka.tgz
+
+    - name: Extract Kafka
+      unarchive:
+        src: /opt/kafka.tgz
+        dest: /opt/
+        remote_src: yes
+
+    - name: Create symbolic link for Kafka
+      file:
+        src: /opt/kafka_2.13-3.6.1
+        dest: /opt/kafka
+        state: link
+
+    - name: Start Zookeeper
+      shell: nohup /opt/kafka/bin/zookeeper-server-start.sh /opt/kafka/config/zookeeper.properties > /tmp/zookeeper.log 2>&1 &
+      async: 10
+      poll: 0
+
+    - name: Wait for Zookeeper
+      wait_for:
+        port: 2181
+        state: started
+        timeout: 30
+
+    - name: Start Kafka broker
+      shell: nohup /opt/kafka/bin/kafka-server-start.sh /opt/kafka/config/server.properties > /tmp/kafka.log 2>&1 &
+      async: 10
+      poll: 0
+
+    - name: Wait for Kafka broker
+      wait_for:
+        port: 9092
+        state: started
+        timeout: 60
