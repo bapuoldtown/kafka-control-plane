@@ -40,14 +40,4 @@ resource "aws_instance" "kafka_node" {
     Name = "kafka-control-node"
   }
 
-  provisioner "remote-exec" {
-    inline = ["echo EC2 Created Successfully"]
-
-    connection {
-      type        = "ssh"
-      user        = "ec2-user"
-      private_key = file(var.private_key_path)
-      host        = self.public_ip
-    }
-  }
 }
