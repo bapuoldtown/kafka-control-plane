@@ -1,61 +1,70 @@
----
-- name: Install Kafka and Zookeeper on EC2
-  hosts: kafka
+- hosts: all
   become: yes
+  vars:
+    kafka_version: "3.7.2"
+    scala_version: "2.12"
+    kafka_url: "https://downloads.apache.org/kafka/3.7.2/kafka_2.12-3.7.2.tgz"
+    kafka_tgz: "/opt/kafka.tgz"
+    kafka_dir: "/opt/kafka_2.12-3.7.2"
 
   tasks:
     - name: Install dependencies
       apt:
-        name:
-          - openjdk-11-jdk
-          - wget
-          - net-tools
+        name: "{{ item }}"
         state: present
-      when: ansible_os_family == 'Debian'
+        update_cache: yes
+      loop:
+        - default-jdk
+        - curl
+        - wget
+      when: ansible_os_family == "Debian"
 
     - name: Download Kafka
       get_url:
-        url: https://downloads.apache.org/kafka/3.7.2/kafka_2.12-3.7.2.tgz
-        dest: /opt/kafka.tgz
+        url: "{{ kafka_url }}"
+        dest: "{{ kafka_tgz }}"
+        mode: '0644'
 
     - name: Extract Kafka
       unarchive:
-        src: /opt/kafka.tgz
-        dest: /opt/
+        src: "{{ kafka_tgz }}"
+        dest: /opt
         remote_src: yes
 
     - name: Create symbolic link for Kafka
       file:
-        src: /opt/kafka_2.12-3.7.2
+        src: "{{ kafka_dir }}"
         dest: /opt/kafka
         state: link
 
     - name: Start Zookeeper
-      shell: nohup {{ kafka_dir }}/bin/zookeeper-server-start.sh {{ kafka_dir }}/config/zookeeper.properties > /tmp/zookeeper.log 2>&1 &
-      async: 10
+      shell: |
+        nohup /opt/kafka/bin/zookeeper-server-start.sh /opt/kafka/config/zookeeper.properties > /tmp/zookeeper.log 2>&1 &
+      async: 30
       poll: 0
-
-    - name: Print Zookeeper logs (debugging)
-      shell: cat /tmp/zookeeper.log || true
-      ignore_errors: yes
 
     - name: Wait for Zookeeper
       wait_for:
         port: 2181
         host: 127.0.0.1
         delay: 5
+        timeout: 60
         state: started
-        timeout: 30
-      register: zk_wait
-      ignore_errors: true
 
-    - name: Start Kafka broker
-      shell: nohup /opt/kafka/bin/kafka-server-start.sh /opt/kafka/config/server.properties > /tmp/kafka.log 2>&1 &
-      async: 10
+    - name: Start Kafka
+      shell: |
+        nohup /opt/kafka/bin/kafka-server-start.sh /opt/kafka/config/server.properties > /tmp/kafka.log 2>&1 &
+      async: 30
       poll: 0
 
-    - name: Wait for Kafka broker
+    - name: Wait for Kafka
       wait_for:
         port: 9092
-        state: started
+        host: 127.0.0.1
+        delay: 5
         timeout: 60
+        state: started
+
+    - name: Debug Kafka log
+      shell: cat /tmp/kafka.log || true
+      ignore_errors: true
