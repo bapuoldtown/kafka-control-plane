@@ -1,4 +1,4 @@
-name: Ansible Kafka Install
+name: Install Kafka via Ansible
 
 on:
   workflow_dispatch:
@@ -8,41 +8,27 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Checkout Repo
+      - name: Checkout code
         uses: actions/checkout@v3
 
-      - name: Install Ansible + Terraform
+      - name: Set up Ansible
         run: |
-          sudo apt-get update
-          sudo apt-get install -y ansible unzip
-          curl -fsSL https://apt.releases.hashicorp.com/gpg | gpg --dearmor -o /usr/share/keyrings/hashicorp.gpg
-          echo "deb [signed-by=/usr/share/keyrings/hashicorp.gpg] https://apt.releases.hashicorp.com $(lsb_release -cs) main" | sudo tee /etc/apt/sources.list.d/hashicorp.list
-          sudo apt-get update && sudo apt-get install terraform -y
+          sudo apt update
+          sudo apt install -y ansible openssh-client
 
       - name: Setup SSH Key
         run: |
           mkdir -p ~/.ssh
-          echo "${{ secrets.EC2_SSH_PRIVATE_KEY }}" > ~/.ssh/kafka-key.pem
-          chmod 600 ~/.ssh/kafka-key.pem
+          echo "${{ secrets.SSH_PRIVATE_KEY }}" > ~/.ssh/id_rsa
+          chmod 600 ~/.ssh/id_rsa
+          ssh-keyscan -H ${{ secrets.EC2_IP }} >> ~/.ssh/known_hosts
 
-      - name: Get Public IP from Terraform Output
-        working-directory: terraform
-        run: |
-          terraform init
-          echo "EC2_IP=$(terraform output -raw public_ip)" >> $GITHUB_ENV
-        env:
-          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
-          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-
-      - name: Add to known_hosts
-        run: ssh-keyscan -H $EC2_IP >> ~/.ssh/known_hosts
-
-      - name: Generate Inventory File in amsible/
+      - name: Create inventory
         run: |
           mkdir -p amsible/inventory
           echo "[kafka]" > amsible/inventory/hosts.ini
-          echo "$EC2_IP ansible_user=ec2-user ansible_ssh_private_key_file=~/.ssh/kafka-key.pem" >> amsible/inventory/hosts.ini
+          echo "${{ secrets.EC2_IP }}" >> amsible/inventory/hosts.ini
 
-      - name: Run Ansible Playbook from amsible/
+      - name: Run Ansible Playbook
         run: |
           ansible-playbook -i amsible/inventory/hosts.ini amsible/playbook.yml
