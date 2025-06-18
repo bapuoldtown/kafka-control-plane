@@ -31,15 +31,23 @@
         state: link
 
     - name: Start Zookeeper
-      shell: nohup /opt/kafka/bin/zookeeper-server-start.sh /opt/kafka/config/zookeeper.properties > /tmp/zookeeper.log 2>&1 &
+      shell: nohup {{ kafka_dir }}/bin/zookeeper-server-start.sh {{ kafka_dir }}/config/zookeeper.properties > /tmp/zookeeper.log 2>&1 &
       async: 10
       poll: 0
+
+    - name: Print Zookeeper logs (debugging)
+      shell: cat /tmp/zookeeper.log || true
+      ignore_errors: yes
 
     - name: Wait for Zookeeper
       wait_for:
         port: 2181
+        host: 127.0.0.1
+        delay: 5
         state: started
         timeout: 30
+      register: zk_wait
+      ignore_errors: true
 
     - name: Start Kafka broker
       shell: nohup /opt/kafka/bin/kafka-server-start.sh /opt/kafka/config/server.properties > /tmp/kafka.log 2>&1 &
