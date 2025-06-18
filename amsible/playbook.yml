@@ -15,7 +15,7 @@
 
     - name: Download Kafka
       get_url:
-        url: https://downloads.apache.org/kafka/3.6.1/kafka_2.13-3.6.1.tgz
+        url: https://downloads.apache.org/kafka/3.7.2/kafka_2.12-3.7.2.tgz
         dest: /opt/kafka.tgz
 
     - name: Extract Kafka
