@@ -37,13 +37,12 @@ jobs:
       - name: Add to known_hosts
         run: ssh-keyscan -H $EC2_IP >> ~/.ssh/known_hosts
 
-      - name: Generate Inventory File ✅ Fixed
+      - name: Generate Inventory File in amsible/
         run: |
-          mkdir -p ansible/inventory
-          echo "[kafka]" > ansible/inventory/hosts.ini
-          echo "$EC2_IP ansible_user=ec2-user ansible_ssh_private_key_file=~/.ssh/kafka-key.pem" >> ansible/inventory/hosts.ini
+          mkdir -p amsible/inventory
+          echo "[kafka]" > amsible/inventory/hosts.ini
+          echo "$EC2_IP ansible_user=ec2-user ansible_ssh_private_key_file=~/.ssh/kafka-key.pem" >> amsible/inventory/hosts.ini
 
-      - name: Run Ansible Playbook
-        working-directory: ansible
+      - name: Run Ansible Playbook from amsible/
         run: |
-          ansible-playbook -i inventory/hosts.ini amsible/playbook.yml
+          ansible-playbook -i amsible/inventory/hosts.ini amsible/playbook.yml
